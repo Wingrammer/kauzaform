@@ -27,10 +27,10 @@ def update_form(form_id: int, form: USSDFormUpdate, db: Session = Depends(get_db
 def get_form(form_id: int, db: Session = Depends(get_db)):
     return ussd_form.get_ussd_form(db, form_id)
 
-#Fetch all forms of a tenant
+#Fetch all forms of a app
 @router.get("/forms", response_model=List[USSDFormRead])
-def get_forms(tenant_id: str, db: Session = Depends(get_db)):
-    return ussd_form.get_ussd_forms(db, tenant_id)
+def get_forms(app_id: int, db: Session = Depends(get_db)):
+    return ussd_form.get_ussd_forms(db, app_id)
 
 #Delete form
 @router.delete("/forms/{form_id}")

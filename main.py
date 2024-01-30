@@ -12,7 +12,7 @@ from app.routers import ussd_app
 from app.routers import field as ussd_field
 from app.routers import api_action as ussd_api_action
 from app.routers import state as ussd_state
-# from app.routers import session
+from app.routers import session
 import uvicorn
 from pyngrok import ngrok  # Import Pyngrok
 from fastapi.middleware.cors import CORSMiddleware
@@ -66,7 +66,7 @@ if 'NGROK_ENV' in os.environ:
     print(" * Public URL: {}".format(os.environ['NGROK_PUBLIC_URL']))
 else:
     print(" * Running on localhost")
-    start_ngrok()
+    # start_ngrok()
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

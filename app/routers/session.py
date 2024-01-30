@@ -1,3 +1,4 @@
+from pathlib import Path as OSPath
 from typing import Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Path
 from fastapi.responses import HTMLResponse
@@ -14,7 +15,7 @@ from datetime import datetime, timedelta
 import uuid
 
 # Assuming templates directory is in the parent directory of main.py
-templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
+templates = Jinja2Templates(directory=str(OSPath(__file__).parent / "templates"))
 
 def generate_session_id() -> str:
     """
@@ -105,7 +106,7 @@ async def initialize_session(
 
     return session
 
-@router.post("/ussd-entry/{app_code}", response_model=HTMLResponse)
+@router.post("/ussd-entry/{app_code}")
 async def ussd_entry_point(
     user_id: str,
     user_input: str,
@@ -141,8 +142,8 @@ async def ussd_entry_point(
 
         # Use the response template if available, otherwise use a default template
         template_data = {"message": current_state.message, "options": main_menu_options}
-        response_html = templates.TemplateResponse(current_state.response_template or "default_response_template.txt", {"request": None, "data": template_data})
-        return response_html
+        # response_html = templates.TemplateResponse(current_state.response_template or "default_response_template.txt", {"request": None, "data": template_data})
+        # return response_html
     # Determine the next state based on user input or the default next state
     next_state = get_next_state(user_input, current_state, main_menu_options)
 
@@ -169,6 +170,7 @@ def generate_response_message(next_state, ussd_app):
         ).body.decode("utf-8")
 
         return rendered_response
+        # return ''
 
     # If no response template is defined, return a default message
     return f"Default message for state {next_state}"

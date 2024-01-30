@@ -14,10 +14,10 @@ def get_ussd_state(db: Session, state_id: int):
     
     return db.exec(select(USSDState).where(USSDState.id == state_id)).first()
 
-def get_ussd_states(db: Session, tenant_id: str):
-    """Get all states of an app or a tenant"""
+def get_ussd_states(db: Session, app_id: int):
+    """Get all states of an app or a app"""
     
-    return db.exec(select(USSDState).where(USSDState.tenant_id == tenant_id)).unique().all()
+    return db.exec(select(USSDState).where(USSDState.app_id == app_id)).unique().all()
 
 def update_ussd_state(db: Session, state_id: int, new_data: USSDStateUpdate):
     db_state = db.get(USSDState, state_id)

@@ -14,10 +14,10 @@ def get_ussd_form(db: Session, form_id: int):
     
     return db.exec(select(USSDForm).where(USSDForm.id == form_id)).first()
 
-def get_ussd_forms(db: Session, tenant_id: str):
-    """Get all forms of an app or a tenant"""
+def get_ussd_forms(db: Session, app_id: int):
+    """Get all forms of an app or a app"""
     
-    return db.exec(select(USSDForm).where(USSDForm.tenant_id == tenant_id)).unique().all()
+    return db.exec(select(USSDForm).where(USSDForm.app_id == app_id)).unique().all()
 
 def update_ussd_form(db: Session, form_id: int, new_data: USSDFormUpdate):
     db_form = db.get(USSDForm, form_id)

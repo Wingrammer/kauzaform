@@ -23,14 +23,14 @@ def update_state(state_id: int, state: USSDStateUpdate, db: Session = Depends(ge
     return ussd_state.update_ussd_state(db, state_id, state)
 
 #Fetch state
-@router.get("/states/{state_id}", response_model=List[USSDStateWithRels])
+@router.get("/states/{state_id}", response_model=USSDStateWithRels)
 def get_state(state_id: int, db: Session = Depends(get_db)):
     return ussd_state.get_ussd_state(db, state_id)
 
-#Fetch all states of a tenant
+#Fetch all states of a app
 @router.get("/states", response_model=List[USSDStateRead])
-def get_states(tenant_id: str, db: Session = Depends(get_db)):
-    return ussd_state.get_ussd_states(db, tenant_id)
+def get_states(app_id: int, db: Session = Depends(get_db)):
+    return ussd_state.get_ussd_states(db, app_id)
 
 #Delete state
 @router.delete("/states/{state_id}")
