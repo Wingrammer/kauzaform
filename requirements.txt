@@ -8,3 +8,4 @@ httpx
 python-jose[pycryptodome]
 pyngrok
 jinja2
+psycopg2
