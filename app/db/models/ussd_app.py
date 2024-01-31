@@ -1,3 +1,4 @@
+import uuid
 from sqlmodel import Field, Relationship
 from app.db.models.form import USSDForm
 from app.db.models.state import USSDState
@@ -8,7 +9,9 @@ from typing import Any, List, Optional
 class USSDAppBase(CustomBaseModel):
     secret: Optional[str] = None
     initial_state_id: Optional[int] = Field(default=None, foreign_key="ussdstate.id", nullable=True)
-    code: str = Field(index=True, unique=True)
+    code: str = Field(index=True)
+    public_id: Optional[str] = Field(index=True, unique=True,
+                            default_factory=lambda: str(uuid.uuid4()))
     session_expiry: int = Field(default=30)
 
 class USSDApp(USSDAppBase, table=True):
@@ -19,7 +22,7 @@ class USSDAppCreate(USSDAppBase):
     pass
 
 class USSDAppRead(USSDAppBase):
-    pass
+    public_id: uuid.UUID
 
 class USSDAppUpdate(CustomBaseModel):
     secret: Optional[str] = None

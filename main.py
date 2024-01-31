@@ -40,7 +40,7 @@ app.include_router(ussd_app.router, prefix="/ussd", tags=["ussd_app"])
 app.include_router(ussd_field.router, prefix="/ussd", tags=["ussd_field"])
 app.include_router(ussd_api_action.router, prefix="/ussd", tags=["ussd_api_action"])
 app.include_router(ussd_state.router, prefix="/ussd", tags=["ussd_state"])
-# app.include_router(session.router, prefix="/session", tags=["ussd_session"])
+app.include_router(session.router, prefix="/session", tags=["ussd_session"])
 
 
 # CORS middleware to allow all origins during development

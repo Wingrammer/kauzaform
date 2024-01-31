@@ -17,8 +17,8 @@ def get_ussd_ussd_apps(db: Session, tenant_id: str):
     """Get all apps of a tenant"""
     return db.exec(select(USSDApp).where(USSDApp.tenant_id == tenant_id)).unique().all()
 
-def get_ussd_ussd_app_by_code(db: Session, app_code: str):
-    return db.exec(select(USSDApp).where(USSDApp.code == app_code)).first()
+def get_ussd_ussd_app_by_public_id(db: Session, public_id: str):
+    return db.exec(select(USSDApp).where(USSDApp.public_id == public_id)).unique().one()
 
 def update_ussd_ussd_app(db: Session, ussd_app_id: int, new_data: USSDAppUpdate):
     db_ussd_app = db.get(USSDApp, ussd_app_id)
