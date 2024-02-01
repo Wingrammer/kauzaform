@@ -9,8 +9,9 @@ from app.db.engine import get_db
 from app.db.models.option import USSDOption
 from app.db.models.state import USSDState
 from app.routers.state import get_state
+from app.routers.option import get_option
 from app.routers.ussd_app import get_app_by_public_id
-from app.schemas.session import USSDSession
+from app.schemas.session import USSDSession, USSDSessionInput
 from app.db.models.ussd_app import USSDApp
 
 from datetime import datetime, timedelta
@@ -19,11 +20,7 @@ import uuid
 # Assuming templates directory is in the parent directory of main.py
 templates = Jinja2Templates(directory=str(OSPath(__file__).parent.parent / "templates"))
 
-def generate_session_id() -> str:
-    """
-    Generate a unique session ID using UUID.
-    """
-    return str(uuid.uuid4())
+
 
 
 router = APIRouter()
@@ -40,45 +37,9 @@ def save_session(session: USSDSession):
     # Update user_id to session_id mapping for the specific app_id
     app_session_mapping = user_app_session_mapping.setdefault(session.user_id, {})
     app_session_mapping[session.app_id] = session.id
-
-async def get_session_from_memory(user_id: str, public_id: str, session: Optional[USSDSession] = None, resume_old_session: bool = False) -> Optional[USSDSession]:
-    """
-    Retrieve the session from the session memory.
-    """
-    print(user_id, public_id, session, resume_old_session)
-    if session is None:
-        # Check if there is a session_id associated with the user_id for the specific app_id
-        app_session_mapping = user_app_session_mapping.get(user_id, {})
-        session_id = app_session_mapping.get(public_id)
-        if session_id:
-            removed_session = session_memory.pop(session_id, None)
-            if removed_session:
-                if resume_old_session:
-                    session = removed_session
-        if session is None:
-            session = await initialize_session(user_id, public_id)
-    if session.id not in session_memory:
-        raise HTTPException(status_code=404, detail="Session not found")
-    if session.expiration is not None and session.expiration < datetime.utcnow():
-        session_memory.pop(session.id)
-        raise HTTPException(status_code=404, detail="Session expired")
-    
-    return session_memory.get(session.id)
-
-
-# ... (OAuth2 and dependencies remain the same)
-
-# Dependency to initialize or retrieve a session
-def initialize_or_get_session(
-    user_id: str,
-    session: Optional[USSDSession] = Depends(get_session_from_memory),
-    resume_old_session: bool = False,
-) -> USSDSession:
-    return session
-@router.post("/init-session/{app_id}", response_model=USSDSession)
 async def initialize_session(
-    user_id: str,
-    public_id: str
+    public_id: str,
+    input: USSDSessionInput
 ):
     """
     Initialize a USSD session.
@@ -89,27 +50,64 @@ async def initialize_session(
     #     raise HTTPException(status_code=403, detail="User does not have access to this app")
 
     # Calculate session expiration time (adjust based on your requirements)
-    print(1)
+    input.app_id = public_id
     expiration_time = datetime.utcnow() + timedelta(minutes=30)
-    print(2)
-    # Create a new USSD session
-    session_id = generate_session_id()  # Implement a function to generate unique session IDs
-    print(3)
-    session = USSDSession(
-        id=session_id,
-        app_id=public_id,
-        user_id=user_id,
-        expiration=expiration_time  # Set to the initial state
-        # Add other session-related fields as needed
-    )
-    print(4)
+    
+    session = USSDSession(**input.model_dump(), expiration = expiration_time)
+    
+    
     # Save the session to the session memory
     save_session(session)
-    print(5)
     return session
+async def get_session_from_memory(input: USSDSessionInput, public_id: str, session: Optional[USSDSession] = Depends(initialize_session)) -> Optional[USSDSession]:
+    """
+    Retrieve the session from the session memory.
+    """
+    # print(user_id, public_id, session, resume_old_session)
+    # print(input.app_id, public_id)
+    
+    # print(input.app_id)
+    # raise HTTPException(status_code=404, detail=f"{input.app_id}, {public_id}")
+    # if session is None:
+        # Check if there is a session_id associated with the user_id for the specific app_id
+    # app_session_mapping = user_app_session_mapping.get(input.user_id, {})
+    # session_id = app_session_mapping.get(public_id)
+    # print(session_memory)
+    # if session_id:
+    #     # print(session_id)
+    #     removed_session = session_memory.pop(session_id, None)
+    #     if removed_session:
+    #         # print(removed_session)
+    #         if input.resume_old_session:
+    #             session = removed_session
+    #             print(input.resume_old_session)
+        # print("No removed")
+    # print(session, "\n_________________\n")
+    # print(session_memory)
+    if session.id not in session_memory:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if session.expiration is not None and session.expiration < datetime.utcnow():
+        session_memory.pop(session.id)
+        raise HTTPException(status_code=404, detail="Session expired")
+    # print("HOOO")
+    # raise HTTPException(status_code=404, detail=f"{session.app_id}, {public_id}")
+    return session_memory.get(session.id)
+
+
+# ... (OAuth2 and dependencies remain the same)
+
+# Dependency to initialize or retrieve a session
+def initialize_or_get_session(
+    input: USSDSessionInput,
+    session: Optional[USSDSession] = Depends(get_session_from_memory),
+    
+) -> USSDSession:
+    return session
+# @router.post("/init-session/{app_id}", response_model=USSDSession)
+
 
 async def get_ussd_app_and_session(
-    user_id: str,
+    input: USSDSessionInput,
     public_id: str = Path(..., title="The USSD code or identifier for the app."),
     ussd_app: USSDApp = Depends(get_app_by_public_id),
     session: USSDSession = Depends(initialize_or_get_session),
@@ -117,37 +115,36 @@ async def get_ussd_app_and_session(
     return ussd_app, session
 @router.post("/ussd-entry/{public_id}")
 async def ussd_entry_point(
-    
-    user_input: Optional[str] = None,
+    input: USSDSessionInput,
     public_id: str = Path(..., title="The USSD code or identifier for the app."),
     secret: Optional[str] = None,
-    
     app_and_session: tuple[USSDApp, USSDSession] = Depends(get_ussd_app_and_session),
-    resume_old_session: Optional[bool] = False,
     db: Session = Depends(get_db)
 ):
     ussd_app, session = app_and_session
     # Ensure the session belongs to the specified USSD app
+    
     if session.app_id != public_id:
-        raise HTTPException(status_code=403, detail="Session does not belong to this app")
+        raise HTTPException(status_code=403, detail=f"Session {session.app_id} does not belong to this app")
     
     # Ensure the app has a initial_state defined
     if ussd_app.initial_state_id is None:
         raise HTTPException(status_code=400, detail="The app does not have a version ready for production.")
 
     # If the session's current_state is None, set it to the initial_state of the USSDApp
-    if session.current_state is None or not resume_old_session:
-        session.current_state = ussd_app.initial_state_id
+    if session.current_state is None or not input.resume_old_session:
+        session.current_state = get_state(ussd_app.initial_state_id, db)
         save_session(session)
 
     # Retrieve the current state based on the session's current_state
-    current_state = get_state(session.current_state, db)
+    current_state = session.current_state
 
     # Retrieve the main menu options
     # main_menu_options = get_state(ussd_app.initial_state_id).options
     options = current_state.options
     # If it is the initial state, display the message and options using a Jinja template
-    if current_state.id == ussd_app.initial_state_id and user_input is None:
+    # Done
+    if current_state.id == ussd_app.initial_state_id and input.user_input is None:
         # Retrieve the main menu options
         # main_menu_options = get_state(ussd_app.initial_state).options
 
@@ -159,11 +156,13 @@ async def ussd_entry_point(
         print(response_template)
         response_html = templates.TemplateResponse(response_template, {"request": None, "data": template_data})
         print(response_html)
-        return HTMLResponse(content=response_html.body)
+        session.output = response_html.body
+        return session
         # except Exception as e:
         #     raise HTTPException(status_code=500, detail=f"Error rendering template: {str(e)}")
     # Determine the next state based on user input or the default next state
-    next_state = get_next_state(user_input, current_state, options)
+    # Commence a partir d'ici. La fonction get_next_state est déjà définie mais pas terminée
+    next_state = get_next_state(input.user_input, current_state, options)
 
     # Update the session's current_state
     session.current_state = next_state
@@ -194,17 +193,22 @@ def generate_response_message(next_state, ussd_app):
     return f"Default message for state {next_state}"
 
 # Determine the next state based on user input or the default next state
-def get_next_state(user_input:str, current_state: USSDState, main_menu_options: List[USSDOption]):
-    # Implement logic based on the current state, options, etc.
+def get_next_state(user_input: str, current_state: USSDState, main_menu_options: List[USSDOption], db: Session = Depends(get_db)) -> USSDState:
+    # Utilisez filter pour trouver l'option correspondante
+    matching_options = list(filter(lambda option: option.option_value == user_input, current_state.options))
 
-    # Check if user_input matches any of the options in the current state
-    if user_input in [option.option_value for option in current_state.options]:
-        # Logic to handle when user_input matches an option
-        # ...
-        pass
+    if matching_options:
+        # Récupérez l'id de la première option correspondante
+        matched_option_id = matching_options[0].id
+
+        # Récupérez l'option correspondante à partir de la base de données (ou autre source)
+        matched_option = get_option(matched_option_id, db)
+
+        # Mise à jour du state actuel
+        Session.current_state = get_state(matched_option.next_state_id, db)
     else:
-        # Logic to handle when user_input does not match any option
-        # raise http error
+        # Logique à traiter lorsque user_input ne correspond à aucune option
+        # Soulevez une exception HTTP
         raise HTTPException(status_code=400, detail="Invalid input")
     
-    return current_state
+    return Session.current_state
