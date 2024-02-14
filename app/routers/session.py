@@ -138,7 +138,8 @@ async def ussd_entry_point(
 
     # If the session's current_state is None, set it to the initial_state of the USSDApp
     # if session.current_state is None and input.resume_old_session == False:
-    if session.current_state is None:
+    
+    if session.current_state is None or input.user_input=='start':
         session.current_state = get_state(ussd_app.initial_state_id, db)
         save_session(session)
         options = session.current_state.options
