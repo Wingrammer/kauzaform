@@ -8,4 +8,5 @@ httpx
 python-jose[pycryptodome]
 pyngrok
 jinja2
-psycopg2
+psycopg2-binary
+# psycopg2
