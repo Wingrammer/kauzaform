@@ -50,16 +50,21 @@ async def initialize_session(
     #     raise HTTPException(status_code=403, detail="User does not have access to this app")
 
     # Calculate session expiration time (adjust based on your requirements)
+    
     input.app_id = public_id
     expiration_time = datetime.utcnow() + timedelta(minutes=30)
-    
+    # session = await get_session_from_memory(input, public_id, USSDSession(**input.model_dump(), expiration = expiration_time))
+    session = session_memory.get(input.id)
+    if session is not None:
+        # save_session(session)
+        return session
     session = USSDSession(**input.model_dump(), expiration = expiration_time)
     
     
     # Save the session to the session memory
     save_session(session)
     return session
-async def get_session_from_memory(input: USSDSessionInput, public_id: str, session: Optional[USSDSession] = Depends(initialize_session)) -> Optional[USSDSession]:
+async def get_session_from_memory(input: USSDSessionInput, public_id: str, session: USSDSession) -> Optional[USSDSession]:
     """
     Retrieve the session from the session memory.
     """
@@ -110,7 +115,7 @@ async def get_ussd_app_and_session(
     input: USSDSessionInput,
     public_id: str = Path(..., title="The USSD code or identifier for the app."),
     ussd_app: USSDApp = Depends(get_app_by_public_id),
-    session: USSDSession = Depends(initialize_or_get_session),
+    session: USSDSession = Depends(initialize_session),
 ):
     return ussd_app, session
 @router.post("/ussd-entry/{public_id}")
@@ -132,46 +137,73 @@ async def ussd_entry_point(
         raise HTTPException(status_code=400, detail="The app does not have a version ready for production.")
 
     # If the session's current_state is None, set it to the initial_state of the USSDApp
-    if session.current_state is None or not input.resume_old_session:
+    # if session.current_state is None and input.resume_old_session == False:
+    if session.current_state is None:
         session.current_state = get_state(ussd_app.initial_state_id, db)
         save_session(session)
+        options = session.current_state.options
+        template_data = {"message": session.current_state.message, "options": options}
+        response_template = session.current_state.response_template or "default_response_template.txt"
+
+        # try:
+        # print(response_template)
+        response_html = templates.TemplateResponse(response_template, {"request": None, "data": template_data})
+        # print(response_html)
+        session.output = response_html.body
+        return session
 
     # Retrieve the current state based on the session's current_state
-    current_state = session.current_state
+    current_state: USSDState = session.current_state
 
     # Retrieve the main menu options
     # main_menu_options = get_state(ussd_app.initial_state_id).options
     options = current_state.options
     # If it is the initial state, display the message and options using a Jinja template
     # Done
-    if current_state.id == ussd_app.initial_state_id and input.user_input is None:
+    # if current_state.id == ussd_app.initial_state_id:
+        
+        # raise HTTPException(status_code=400, detail="Invalid input")
         # Retrieve the main menu options
         # main_menu_options = get_state(ussd_app.initial_state).options
+        # save_session(session)
 
+        # # Implement logic based on the next state, options, etc.
+        # response_message = generate_response_message(next_state, ussd_app)
         # Use the response template if available, otherwise use a default template
-        template_data = {"message": current_state.message, "options": options}
-        response_template = current_state.response_template or "default_response_template.txt"
+        # template_data = {"message": current_state.message, "options": options}
+        # response_template = current_state.response_template or "default_response_template.txt"
 
-        # try:
-        print(response_template)
-        response_html = templates.TemplateResponse(response_template, {"request": None, "data": template_data})
-        print(response_html)
-        session.output = response_html.body
-        return session
+        # # try:
+        # # print(response_template)
+        # response_html = templates.TemplateResponse(response_template, {"request": None, "data": template_data})
+        # # print(response_html)
+        # session.output = response_html.body
+        # return session
+        
         # except Exception as e:
         #     raise HTTPException(status_code=500, detail=f"Error rendering template: {str(e)}")
     # Determine the next state based on user input or the default next state
     # Commence a partir d'ici. La fonction get_next_state est déjà définie mais pas terminée
-    next_state = get_next_state(input.user_input, current_state, options)
+    next_state = get_next_state(input.user_input, current_state, options, db)
 
     # Update the session's current_state
     session.current_state = next_state
+    
+    options = session.current_state.options
+    # # Implement logic based on the next state, options, etc.
+    # response_message = generate_response_message(next_state, ussd_app)
+    # Use the response template if available, otherwise use a default template
+    template_data = {"message": session.current_state.message, "options": options}
+    response_template = session.current_state.response_template or "default_response_template.txt"
+
+    # try:
+    print(response_template)
+    response_html = templates.TemplateResponse(response_template, {"request": None, "data": template_data})
+    print(response_html.body)
+    session.output = response_html.body
     save_session(session)
-
-    # Implement logic based on the next state, options, etc.
-    response_message = generate_response_message(next_state, ussd_app)
-
-    return {"message": response_message}
+    return session
+    # return {"message": response_message}
 
 def generate_response_message(next_state, ussd_app):
     # Get the USSDState object for the next state
@@ -193,22 +225,22 @@ def generate_response_message(next_state, ussd_app):
     return f"Default message for state {next_state}"
 
 # Determine the next state based on user input or the default next state
-def get_next_state(user_input: str, current_state: USSDState, main_menu_options: List[USSDOption], db: Session = Depends(get_db)) -> USSDState:
+def get_next_state(user_input: str, current_state: USSDState, main_menu_options: List[USSDOption], db: Session) -> USSDState:
     # Utilisez filter pour trouver l'option correspondante
-    matching_options = list(filter(lambda option: option.option_value == user_input, current_state.options))
-
+    matching_options: List[USSDOption] = list(filter(lambda option: option.option_value == user_input, current_state.options))
+    # raise Exception(status_code=514, detail="Not implemented")
     if matching_options:
         # Récupérez l'id de la première option correspondante
-        matched_option_id = matching_options[0].id
+        matched_option_id = matching_options[0].next_state_id
 
         # Récupérez l'option correspondante à partir de la base de données (ou autre source)
         matched_option = get_option(matched_option_id, db)
 
         # Mise à jour du state actuel
-        Session.current_state = get_state(matched_option.next_state_id, db)
+        current_state = get_state(matched_option.next_state_id, db)
     else:
         # Logique à traiter lorsque user_input ne correspond à aucune option
         # Soulevez une exception HTTP
         raise HTTPException(status_code=400, detail="Invalid input")
     
-    return Session.current_state
+    return current_state

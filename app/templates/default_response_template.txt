@@ -2,7 +2,7 @@
 
 {% if data.options %}
     {% for option in data.options %}
-        - {{ option.option_value }} {{option.option_text}}
+    */{{ option.option_value }}* {{option.option_text}}
     {% endfor %}
 {% else %}
     Aucune option disponible.
