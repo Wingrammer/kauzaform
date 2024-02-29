@@ -138,7 +138,7 @@ async def ussd_entry_point(
 
     # If the session's current_state is None, set it to the initial_state of the USSDApp
     # if session.current_state is None and input.resume_old_session == False:
-    
+    print(input.user_input)
     if session.current_state is None or input.user_input=='start':
         session.current_state = get_state(ussd_app.initial_state_id, db)
         save_session(session)
@@ -189,6 +189,7 @@ async def ussd_entry_point(
 
     # Update the session's current_state
     session.current_state = next_state
+    print(session.current_state)
     
     options = session.current_state.options
     # # Implement logic based on the next state, options, etc.
@@ -232,13 +233,15 @@ def get_next_state(user_input: str, current_state: USSDState, main_menu_options:
     # raise Exception(status_code=514, detail="Not implemented")
     if matching_options:
         # Récupérez l'id de la première option correspondante
-        matched_option_id = matching_options[0].next_state_id
+        matched_option = matching_options[0]
+        matched_option_id = matched_option.id
 
         # Récupérez l'option correspondante à partir de la base de données (ou autre source)
-        matched_option = get_option(matched_option_id, db)
-
+        
+        print(matched_option)
         # Mise à jour du state actuel
         current_state = get_state(matched_option.next_state_id, db)
+        print(current_state)
     else:
         # Logique à traiter lorsque user_input ne correspond à aucune option
         # Soulevez une exception HTTP
