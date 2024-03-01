@@ -5,5 +5,5 @@
     */{{ option.option_value }}* {{option.option_text}}
     {% endfor %}
 {% else %}
-    Aucune option disponible.
+    */start* Recommencer
 {% endif %}
