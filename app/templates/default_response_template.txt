@@ -1,8 +1,8 @@
-{{ data.message }}
+{{ data.message|safe }}
 
 {% if data.options %}
     {% for option in data.options %}
-    */{{ option.option_value }}* {{option.option_text}}
+    */{{ option.option_value }}* {{option.option_text|safe}}
     {% endfor %}
 {% else %}
     */start* Recommencer
